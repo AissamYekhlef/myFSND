@@ -55,7 +55,7 @@ One note before you delve into your tasks: for each endpoint you are expected to
       "5":"Entertainment",
       "6":"Sports"
     },
-  "page": "2/4",  
+  "page": "2/3",  
   "current_category":null,
   "questions":[
     {
@@ -118,7 +118,7 @@ One note before you delve into your tasks: for each endpoint you are expected to
 ```json 
 {
   "current_category":null,
-  "page": "1/4",
+  "page": "1/1",
   "questions":[
       {
         "answer":"Lake Victoria",
@@ -165,7 +165,7 @@ One note before you delve into your tasks: for each endpoint you are expected to
       "id":1,
       "type":"Science"
     },
-  "page": "1/4",
+  "page": "1/1",
   "questions":[
       {"answer":"The Liver","category":1,"difficulty":4,"id":20,"question":"What is the heaviest organ in the human body?"},
       {"answer":"Alexander Fleming","category":1,"difficulty":3,"id":21,"question":"Who discovered penicillin?"},
