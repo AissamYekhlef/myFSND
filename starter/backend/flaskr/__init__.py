@@ -60,45 +60,52 @@ def create_app(test_config=None):
   @app.route('/categories/<id>/questions')
   def get_questions_by_categories(id):
     if( Category.query.filter(Category.id == id).one_or_none() == None):
-      return jsonify({
-      'result':'No category id '+ id
-      })
-    qs = Question.query.filter(Question.category == id)
-    questions = paginate_questions( request , qs)
+      abort(404)
+    qs = Question.query.filter(Question.category == id).all()
+    questions = paginate_questions(request , qs)
+    d = is_arg_page_valide(qs, request)
+    all_pages_available = d['all_pages_available']
+    current_page = d['current_page']
 
 
     return jsonify({
-      'totalQuestions':qs.count(),
+      'success': True,
+      'totalQuestions':len(qs),
       'currentCategory': Category.query.get(id).type,
       'questions': questions,
+          'page': current_page +'/'+ str(all_pages_available)
     })
 
-  # def is_arg_page_valide(questions_, request):
-  #     questions = questions_
-  #     arg_pages = request.args.get('page')
-  #     all_questions_number = len(questions)
-  #     all_page_available = int(all_questions_number/QUESTIONS_PER_PAGE)
+  def is_arg_page_valide(questions, request):
+      arg_pages = request.args.get('page')
+      all_questions_number = len(questions)
+      all_pages_available = int(all_questions_number/QUESTIONS_PER_PAGE)
+      if (all_questions_number % QUESTIONS_PER_PAGE) != 0 : 
+        all_pages_available += 1
 
-  #     return int(arg_pages) > all_page_available
+      if(not arg_pages) :
+        current_page = "1"
+      else:
+        if int(arg_pages) > all_pages_available or not arg_pages:
+          abort(404)
+        current_page = arg_pages
 
+      d = {}
+      d['all_pages_available'] = all_pages_available
+      d['current_page'] = current_page
+
+      return d
+    
   @app.route('/questions')
   def get_all_questions():
     questions = Question.query.all()
     categories = get_categories_from_DB()
 
     current_questions = paginate_questions(request, questions) 
-    all_questions_number = len(questions)
-    all_pages = int(all_questions_number/QUESTIONS_PER_PAGE)
-    arg_page = request.args.get('page')
-
-    if (all_questions_number % QUESTIONS_PER_PAGE) != 0 : 
-      all_pages += 1
-    if(not arg_page) :
-      current_page = "1"
-    else:
-      if int(arg_page) > all_pages:
-        abort(404)
-      current_page = arg_page
+ 
+    d = is_arg_page_valide(questions, request)
+    all_pages_available = d['all_pages_available']
+    current_page = d['current_page']
 
     return jsonify(
         {
@@ -107,7 +114,7 @@ def create_app(test_config=None):
           'totalQuestions': len(questions),
           'categories': categories,
           'currentCategory': None,
-          'page': current_page +'/'+ str(all_pages)
+          'page': current_page +'/'+ str(all_pages_available)
         })
 
 
@@ -122,12 +129,13 @@ def create_app(test_config=None):
     question.delete()
     selection = Question.query.order_by(Question.id).all()
     current_questions = paginate_questions(request, selection)
-
+    # test if the page in the arg is valide
+    is_arg_page_valide(selection, request)
     return jsonify({
       'success': True,
       'deleted': question_id,
       'questions': current_questions,
-      'total_questions': len(Question.query.all())
+      'totalQuestions': len(Question.query.all())
     }) 
 
   @app.route('/questions', methods=['POST'])
@@ -144,14 +152,19 @@ def create_app(test_config=None):
     search_term = body.get('searchTerm', None)
     
     if search_term:
-      selection = Question.query.order_by(Question.id).filter(Question.question.ilike('%{}%'.format(search_term)))
+      selection = Question.query.order_by(Question.id).filter(Question.question.ilike('%{}%'.format(search_term))).all()
       current_questions = paginate_questions(request, selection)
+      
+      d = is_arg_page_valide(selection, request)
+      all_pages_available = d['all_pages_available']
+      current_page = d['current_page']
 
       return jsonify({
         'success': True,
         'currentCategory': None,
         'questions': current_questions,
-        'totalQuestions': len(selection.all())
+        'totalQuestions': len(selection),
+        'page': current_page +'/'+ str(all_pages_available)
       })
     else:
       if new_question is None or new_answer is None or new_difficulty is None or new_category is None :
@@ -162,15 +175,15 @@ def create_app(test_config=None):
 
         selection = Question.query.order_by(Question.id).all()
         current_questions = paginate_questions(request, selection)
+        is_arg_page_valide(selection, request)
 
         return jsonify({
           'success': True,
           'created': quest.id,
           'questions': current_questions,
-          'total_questions': len(Question.query.all())
+          'totalQuestions': len(Question.query.all())
         })
-  #  try:  except:
-  #     abort(422)
+
 
   '''
     Route for create a new Category.
@@ -208,12 +221,14 @@ def create_app(test_config=None):
   '''
   @app.route('/quizzes', methods=['POST'])
   def quizzes_fanction():
+    if request.get_json() is None: abort(422)
     body = request.get_json()
-    
+  
     previous_questions = body.get('previous_questions', None)
     quiz_category = body.get('quiz_category', None)
     quiz_category_id = quiz_category.get('id', -1)
 
+  
     if quiz_category_id == 0:
         selection = Question.query.order_by(Question.id).filter(
             Question.id.notin_(previous_questions)).all()
@@ -236,7 +251,7 @@ def create_app(test_config=None):
         return jsonify({
             "success": True,
             "question": None
-        })
+        })   
 
 
   @app.errorhandler(404)
